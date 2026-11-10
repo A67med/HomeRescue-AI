@@ -173,6 +173,32 @@ def load_entity_csv(
     }
 
 
+def load_all_datasets(raw_dir: Path = Path("data/raw"), target_db: str | None = None) -> dict:
+    db_name = target_db or get_database_name()
+    engine = get_engine(database=db_name)
+    batch_id = str(uuid.uuid4())
+    results = []
+    for entity, cfg in ENTITY_CONFIG.items():
+        csv_path = raw_dir / cfg["filename"]
+        if not csv_path.exists():
+            raise FileNotFoundError(f"Expected CSV file not found: {csv_path}")
+        results.append(load_entity_csv(engine, entity, csv_path, batch_id=batch_id))
+
+    out_dir = Path("data/exports/validation")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_file = out_dir / f"bronze_load_reconciliation_{db_name}.json"
+    payload = {
+        "database": db_name,
+        "batch_id": batch_id,
+        "executed_at_utc": datetime.now(timezone.utc).isoformat(),
+        "tables": results,
+    }
+    out_file.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    print(f"Saved Bronze load reconciliation evidence to {out_file}")
+    engine.dispose()
+    return payload
+
+
 def main():
     parser = argparse.ArgumentParser(description="Load NYC Open Data CSVs into Bronze.")
     parser.add_argument("single_file", nargs="?", help="Optional single CSV file path")
