@@ -1,0 +1,4 @@
+layer,table,column,data_type,definition,source,pii_flag,nullable,quality_rule
+bronze,source_a,event_id,VARCHAR(50),Event identifier as received,source_a.csv,no,yes,none (raw)
+silver,event,event_id,VARCHAR(50),Unique event identifier,bronze.source_a,no,no,unique and not empty
+silver,event,amount,DECIMAL(12.2),Event value,bronze.source_a,no,yes,not negative

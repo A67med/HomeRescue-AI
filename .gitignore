@@ -1,0 +1,29 @@
+# Python virtual environments and caches
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Secrets and local environment settings (never commit)
+.env
+.env.*
+!.env.example
+
+# Raw source data and exports stay out of Git
+data/raw/*
+data/exports/*
+!data/**/.gitkeep
+
+# SQL Server database files and backups
+*.mdf
+*.ldf
+*.ndf
+*.bak
+*.trn
+
+# Trained ML artifacts
+models/*.bin
+models/*.pkl
+models/*.joblib
