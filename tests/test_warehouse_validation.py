@@ -6,9 +6,9 @@ from pathlib import Path
 import pytest
 from sqlalchemy import create_engine, text
 from src.quality.run_checks import run_all_checks
+from src.run_pipeline import _run_sqlcmd_script
 
 
-SQLCMD_PATH = r"C:\Program Files\Microsoft SQL Server\Client SDK\ODBC\180\Tools\Binn\sqlcmd.exe"
 SYNTH_DB = "homerescue_dw_synth_fixture"
 
 
@@ -22,20 +22,7 @@ def _get_db_engine(db_name: str, autocommit: bool = False):
 
 
 def _run_sql_script(db_name: str, script_rel_path: str) -> None:
-    cmd = [
-        SQLCMD_PATH,
-        "-S",
-        "localhost",
-        "-d",
-        db_name,
-        "-E",
-        "-C",
-        "-b",
-        "-i",
-        str(Path(script_rel_path)),
-    ]
-    res = subprocess.run(cmd, capture_output=True, text=True, check=False)
-    assert res.returncode == 0, f"sqlcmd failed on {script_rel_path}:\n{res.stdout}\n{res.stderr}"
+    _run_sqlcmd_script(db_name, script_rel_path)
 
 
 @pytest.fixture(scope="module")

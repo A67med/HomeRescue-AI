@@ -1,0 +1,125 @@
+# Semantic layer: governed business metric catalog for HomeRescue AI (NYC Housing Maintenance & Repair Analytics).
+# Required keys: name, label, definition, owner, grain, sql, dimensions, null_policy, validation_query
+# Synchronize into SQL Server via: python -m src.semantic.sync_metrics
+# Validate YAML structure via: pytest tests/test_metrics_yaml.py
+
+metrics:
+  - name: total_complaint_problems
+    label: "Total Complaint Problems"
+    definition: "Count of accepted HPD housing maintenance complaint problem rows (problem_id grain) received in Staten Island during 2024."
+    owner: "HomeRescue Data Engineering & Housing Analytics Team"
+    grain: "one complaint problem row (gold.fact_complaint_problem.problem_id)"
+    sql: "COUNT(f.problem_id)"
+    dimensions: [building_id, zip_code, community_board, year_month, urgency_type, major_category]
+    null_policy: "problem_id is NOT NULL on all accepted rows; rejected Bronze rows are excluded."
+    validation_query: "SELECT COUNT(problem_id) FROM silver.complaint_problem"
+
+  - name: distinct_complaints
+    label: "Distinct Parent Complaints"
+    definition: "Count of distinct parent HPD housing complaints (complaint_id) associated with accepted problem rows in 2024."
+    owner: "HomeRescue Data Engineering & Housing Analytics Team"
+    grain: "distinct parent complaint (gold.fact_complaint_problem.complaint_id)"
+    sql: "COUNT(DISTINCT f.complaint_id)"
+    dimensions: [building_id, zip_code, community_board, year_month]
+    null_policy: "complaint_id is NOT NULL on all accepted rows; non-additive across months if a complaint spans multiple problems."
+    validation_query: "SELECT COUNT(DISTINCT complaint_id) FROM silver.complaint_problem"
+
+  - name: emergency_complaint_problems
+    label: "Emergency Priority Complaint Problems"
+    definition: "Count of accepted HPD complaint problems classified as EMERGENCY or IMMEDIATE EMERGENCY priority."
+    owner: "HomeRescue Data Engineering & Housing Analytics Team"
+    grain: "one complaint problem row (gold.fact_complaint_problem.problem_id)"
+    sql: "SUM(CASE WHEN f.is_emergency_priority = 1 THEN 1 ELSE 0 END)"
+    dimensions: [building_id, zip_code, community_board, year_month, major_category]
+    null_policy: "Missing urgency_type is standardized to UNKNOWN (is_emergency_priority = 0)."
+    validation_query: "SELECT SUM(CASE WHEN urgency_type IN ('IMMEDIATE EMERGENCY', 'EMERGENCY') THEN 1 ELSE 0 END) FROM silver.complaint_problem"
+
+  - name: total_violations
+    label: "Total HMC Violations & Administrative Orders"
+    definition: "Count of all accepted Housing Maintenance Code violation and order rows (Classes A, B, C, and I) inspected in 2024."
+    owner: "HomeRescue Data Engineering & Housing Analytics Team"
+    grain: "one violation row (gold.fact_violation.violation_id)"
+    sql: "COUNT(f.violation_id)"
+    dimensions: [building_id, zip_code, community_board, year_month, violation_class, violation_status]
+    null_policy: "violation_id is NOT NULL on all accepted rows; rejected Bronze rows are excluded."
+    validation_query: "SELECT COUNT(violation_id) FROM silver.violation"
+
+  - name: hazardous_bc_violations
+    label: "Hazardous Violations (Class B & Class C)"
+    definition: "Count of Class B (Hazardous) and Class C (Immediately Hazardous) Housing Maintenance Code violations, excluding non-hazardous Class A and administrative Class I orders."
+    owner: "HomeRescue Data Engineering & Housing Analytics Team"
+    grain: "one violation row (gold.fact_violation.violation_id)"
+    sql: "SUM(CASE WHEN f.is_b_or_c_hazardous_violation = 1 THEN 1 ELSE 0 END)"
+    dimensions: [building_id, zip_code, community_board, year_month, violation_class, violation_status]
+    null_policy: "Class A and Class I rows evaluate to 0; no NULL violation_class exists in Silver or Gold."
+    validation_query: "SELECT SUM(CASE WHEN violation_class IN ('B', 'C') THEN 1 ELSE 0 END) FROM silver.violation"
+
+  - name: immediately_hazardous_c_violations
+    label: "Immediately Hazardous Violations (Class C)"
+    definition: "Count of Class C (Immediately Hazardous) Housing Maintenance Code violations inspected in Staten Island during 2024."
+    owner: "HomeRescue Data Engineering & Housing Analytics Team"
+    grain: "one violation row (gold.fact_violation.violation_id)"
+    sql: "SUM(CASE WHEN f.is_immediately_hazardous = 1 THEN 1 ELSE 0 END)"
+    dimensions: [building_id, zip_code, community_board, year_month, violation_status]
+    null_policy: "Classes A, B, and I evaluate to 0; no NULL violation_class exists in Silver or Gold."
+    validation_query: "SELECT SUM(CASE WHEN violation_class = 'C' THEN 1 ELSE 0 END) FROM silver.violation"
+
+  - name: open_violations
+    label: "Open HMC Violations"
+    definition: "Count of 2024 HMC violations and administrative orders whose violation_status is OPEN as of the source extraction snapshot."
+    owner: "HomeRescue Data Engineering & Housing Analytics Team"
+    grain: "one violation row (gold.fact_violation.violation_id)"
+    sql: "SUM(CASE WHEN f.is_open_violation = 1 THEN 1 ELSE 0 END)"
+    dimensions: [building_id, zip_code, community_board, year_month, violation_class]
+    null_policy: "Closed violations evaluate to 0; represents current snapshot status, not historical point-in-time status."
+    validation_query: "SELECT SUM(CASE WHEN is_open_violation = 1 THEN 1 ELSE 0 END) FROM silver.violation"
+
+  - name: rent_impairing_violations
+    label: "Rent-Impairing Violations"
+    definition: "Count of 2024 HMC violations flagged as rent-impairing (rentimpairing = 'Y') under NY Multiple Dwelling Law Section 302-a."
+    owner: "HomeRescue Data Engineering & Housing Analytics Team"
+    grain: "one violation row (gold.fact_violation.violation_id)"
+    sql: "SUM(CASE WHEN f.is_rent_impairing = 1 THEN 1 ELSE 0 END)"
+    dimensions: [building_id, zip_code, community_board, year_month, violation_class]
+    null_policy: "Non-rent-impairing ('N' or NULL) rows evaluate to 0."
+    validation_query: "SELECT SUM(CASE WHEN is_rent_impairing = 1 THEN 1 ELSE 0 END) FROM silver.violation"
+
+  - name: eligible_repair_order_count
+    label: "Eligible Residential Repair Orders"
+    definition: "Count of Open Market Orders in the eligible residential building repair cohort (is_eligible_repair_cohort = 1), excluding commercial/structural demolitions, duplicate administrative orders, and un-awarded zero-dollar orders."
+    owner: "HomeRescue Data Engineering & Housing Analytics Team"
+    grain: "one repair order row (gold.fact_repair_order.omo_id)"
+    sql: "SUM(CASE WHEN f.is_eligible_repair_cohort = 1 THEN 1 ELSE 0 END)"
+    dimensions: [building_id, zip_code, community_board, year_month, work_type_general]
+    null_policy: "Excluded OMO rows evaluate to 0."
+    validation_query: "SELECT SUM(CASE WHEN is_eligible_repair_cohort = 1 THEN 1 ELSE 0 END) FROM silver.omo_charge"
+
+  - name: eligible_omo_award_amount
+    label: "Eligible Residential Repair Award Amount ($)"
+    definition: "Total awarded contract/order amount (OMOAwardAmount) across eligible residential building repair orders. Represents awarded contract amounts, not verified paid invoice disbursements or preventive savings."
+    owner: "HomeRescue Data Engineering & Housing Analytics Team"
+    grain: "one repair order row (gold.fact_repair_order.omo_id)"
+    sql: "SUM(f.eligible_omo_award_amount)"
+    dimensions: [building_id, zip_code, community_board, year_month, work_type_general]
+    null_policy: "Excluded OMO rows have eligible_omo_award_amount = NULL so they are ignored by SUM and AVG; building-months with no eligible repair orders preserve raw_eligible_omo_award_amount = NULL alongside zero-coalesced eligible_omo_award_amount = 0.00."
+    validation_query: "SELECT SUM(omo_award_amount) FROM silver.omo_charge WHERE is_eligible_repair_cohort = 1"
+
+  - name: avg_eligible_omo_award_amount
+    label: "Average Eligible Residential Repair Award ($)"
+    definition: "Arithmetic mean of awarded contract amounts across eligible residential building repair orders (is_eligible_repair_cohort = 1)."
+    owner: "HomeRescue Data Engineering & Housing Analytics Team"
+    grain: "one eligible repair order row (gold.fact_repair_order.omo_id)"
+    sql: "CAST(AVG(f.eligible_omo_award_amount) AS DECIMAL(18,2))"
+    dimensions: [zip_code, community_board, year_month, work_type_general]
+    null_policy: "Excluded OMO rows have eligible_omo_award_amount = NULL and are excluded from the AVG denominator."
+    validation_query: "SELECT CAST(AVG(omo_award_amount) AS DECIMAL(18,2)) FROM silver.omo_charge WHERE is_eligible_repair_cohort = 1"
+
+  - name: total_all_omo_award_amount
+    label: "Total Raw OMO Award Amount Including Demolitions ($)"
+    definition: "Sum of OMOAwardAmount across all 490 accepted Open Market Orders in Staten Island in 2024, including excluded commercial and structural demolition orders."
+    owner: "HomeRescue Data Engineering & Housing Analytics Team"
+    grain: "one repair order row (gold.fact_repair_order.omo_id)"
+    sql: "SUM(f.omo_award_amount)"
+    dimensions: [building_id, zip_code, community_board, year_month, repair_cohort_category, work_type_general]
+    null_policy: "Zero-dollar un-awarded/cancelled orders contribute 0.00 to the sum."
+    validation_query: "SELECT SUM(omo_award_amount) FROM silver.omo_charge"

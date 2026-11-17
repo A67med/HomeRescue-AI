@@ -27,3 +27,9 @@ data/exports/*
 models/*.bin
 models/*.pkl
 models/*.joblib
+
+# Packaged source CSV duplicates, run logs and local database backup locations
+/01_Sources_and_Datasets/*.csv
+/RUN_LOG.txt
+/RUN_STATUS.txt
+/07_Database_Backup/BACKUP_LOCATION.txt

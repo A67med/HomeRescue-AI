@@ -1,3 +1,5 @@
+> **EVALUATION / 2026-11-13:** This README contains numbers from the teammate's older SQL Server run, which have NOT been re-verified on the recipient computer. For the current prepared package, first read `00_START_HERE_AR.txt` and `EVALUATION_STATUS.md`, then execute `01_RUN_PROJECT.bat` to acquire complete source data, populate the local DB, validate and generate current reports. The incomplete 2026-11-12 full CSV exports are documented in `01_Sources_and_Datasets/SOURCE_AUDIT.md`.
+
 # HomeRescue AI — NYC Housing Maintenance Priority Data Warehouse
 
 > **Data Mining & Data Warehousing Capstone (M0–M5 Complete)**  

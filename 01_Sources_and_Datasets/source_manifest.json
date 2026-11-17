@@ -1,0 +1,52 @@
+{
+  "checked_at_utc": "2026-11-13T01:26:09.875836+00:00",
+  "scope": "Staten Island, 2024",
+  "files": {
+    "buildings": {
+      "dataset_id": "kj4p-ruqc",
+      "file": "data\\raw\\buildings.csv",
+      "sha256": "047d9fea63553669a8b4e8922afe6899fad90ac3776455a4d514aacf1dbe06c2",
+      "csv_rows": 22404,
+      "columns": 23,
+      "wrong_borough": 0,
+      "wrong_year": 0,
+      "malformed_records": 0,
+      "source": "https://data.cityofnewyork.us/d/kj4p-ruqc"
+    },
+    "complaints_problems": {
+      "dataset_id": "ygpa-z7cr",
+      "file": "data\\raw\\complaints_problems.csv",
+      "sha256": "9c9ee7ae2c992a555cb4234b4611b62cfc0091f16b7ed30f5eea7dab5ebac4aa",
+      "csv_rows": 14377,
+      "columns": 33,
+      "wrong_borough": 0,
+      "wrong_year": 0,
+      "malformed_records": 0,
+      "source": "https://data.cityofnewyork.us/d/ygpa-z7cr"
+    },
+    "violations": {
+      "dataset_id": "wvxf-dwi5",
+      "file": "data\\raw\\violations.csv",
+      "sha256": "3146d6b1973a8a36fa03853c66ddc0298a87a3e6d711832d9440b31bd32d5267",
+      "csv_rows": 18463,
+      "columns": 41,
+      "wrong_borough": 0,
+      "wrong_year": 0,
+      "malformed_records": 0,
+      "source": "https://data.cityofnewyork.us/d/wvxf-dwi5"
+    },
+    "omo_charges": {
+      "dataset_id": "mdbu-nrqn",
+      "file": "data\\raw\\omo_charges.csv",
+      "sha256": "c9fc0fc691b250c00b0b037216e8cc93a133c425c7287bfe8a48314c139be0d4",
+      "csv_rows": 490,
+      "columns": 32,
+      "wrong_borough": 0,
+      "wrong_year": 0,
+      "malformed_records": 0,
+      "source": "https://data.cityofnewyork.us/d/mdbu-nrqn"
+    }
+  },
+  "status": "PASS",
+  "total_rows": 55734
+}

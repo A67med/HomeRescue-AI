@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
+import shutil
 import subprocess
 import time
 from datetime import datetime, timezone
@@ -10,14 +12,19 @@ from pathlib import Path
 from sqlalchemy import create_engine, text
 from src.ingest.load_csv import load_all_datasets
 from src.quality.run_checks import run_all_checks
+from src.db import get_odbc_driver
 
 
-SQLCMD_PATH = r"C:\Program Files\Microsoft SQL Server\Client SDK\ODBC\180\Tools\Binn\sqlcmd.exe"
+# Dynamic detection: previous version hard-coded a path that may not exist on student machines.
+SQLCMD_CANDIDATES = [
+    r"C:\Program Files\Microsoft SQL Server\Client SDK\ODBC\180\Tools\Binn\sqlcmd.exe",
+    r"C:\Program Files\Microsoft SQL Server\Client SDK\ODBC\170\Tools\Binn\sqlcmd.exe",
+]
 
 
 def _get_engine_for_db(db_name: str, autocommit: bool = False):
-    server = os.getenv("SQLSERVER_HOST", "localhost")
-    driver = os.getenv("SQLSERVER_DRIVER", "ODBC Driver 18 for SQL Server").replace(" ", "+")
+    server = os.getenv("SQLSERVER_SERVER", "localhost")
+    driver = get_odbc_driver().replace(" ", "+")
     url = (
         f"mssql+pyodbc://@{server}/{db_name}"
         f"?driver={driver}&trusted_connection=yes&TrustServerCertificate=yes"
@@ -25,42 +32,59 @@ def _get_engine_for_db(db_name: str, autocommit: bool = False):
     return create_engine(url, isolation_level="AUTOCOMMIT" if autocommit else None)
 
 
+def _find_sqlcmd():
+    explicit = os.getenv("SQLCMD_PATH", "").strip()
+    if explicit and Path(explicit).is_file():
+        return explicit
+    from_path = shutil.which("sqlcmd") or shutil.which("sqlcmd.exe")
+    if from_path:
+        return from_path
+    for candidate in SQLCMD_CANDIDATES:
+        if Path(candidate).is_file():
+            return candidate
+    return None
+
+
+def _execute_tsql_fallback(db_name: str, sql: str) -> None:
+    """Execute SSMS-style GO batches using installed Python ODBC if sqlcmd is missing."""
+    engine = _get_engine_for_db(db_name)
+    try:
+        with engine.connect() as con:
+            for idx, chunk in enumerate(re.split(r"(?im)^\s*GO\s*(?:--[^\n]*)?$", sql), start=1):
+                if chunk.strip():
+                    try:
+                        con.exec_driver_sql(chunk)
+                        con.commit()
+                    except Exception as ex:
+                        con.rollback()
+                        raise RuntimeError(f"T-SQL batch {idx} failed in {db_name}: {ex}") from ex
+    finally:
+        engine.dispose()
+
+
 def _run_sqlcmd_script(db_name: str, script_path: str) -> None:
-    server = os.getenv("SQLSERVER_HOST", "localhost")
-    cmd = [
-        SQLCMD_PATH,
-        "-S",
-        server,
-        "-d",
-        db_name,
-        "-E",
-        "-C",
-        "-b",
-        "-i",
-        str(Path(script_path)),
-    ]
-    res = subprocess.run(cmd, capture_output=True, text=True, check=False)
-    if res.returncode != 0:
-        raise RuntimeError(f"sqlcmd failed on {script_path} (db={db_name}):\n{res.stdout}\n{res.stderr}")
+    cmdpath = _find_sqlcmd()
+    if cmdpath:
+        cmd = [cmdpath, "-S", os.getenv("SQLSERVER_SERVER", "localhost"), "-d", db_name,
+               "-E", "-C", "-b", "-i", str(Path(script_path))]
+        res = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        if res.returncode != 0:
+            raise RuntimeError(f"sqlcmd failed on {script_path} (db={db_name}):\n{res.stdout}\n{res.stderr}")
+    else:
+        print("[Pipeline] sqlcmd not found; using SQLAlchemy ODBC GO-batch execution")
+        _execute_tsql_fallback(db_name, Path(script_path).read_text(encoding="utf-8-sig"))
 
 
 def _run_sqlcmd_query(db_name: str, query: str) -> None:
-    server = os.getenv("SQLSERVER_HOST", "localhost")
-    cmd = [
-        SQLCMD_PATH,
-        "-S",
-        server,
-        "-d",
-        db_name,
-        "-E",
-        "-C",
-        "-b",
-        "-Q",
-        query,
-    ]
-    res = subprocess.run(cmd, capture_output=True, text=True, check=False)
-    if res.returncode != 0:
-        raise RuntimeError(f"sqlcmd failed on query '{query}' (db={db_name}):\n{res.stdout}\n{res.stderr}")
+    cmdpath = _find_sqlcmd()
+    if cmdpath:
+        cmd = [cmdpath, "-S", os.getenv("SQLSERVER_SERVER", "localhost"), "-d", db_name,
+               "-E", "-C", "-b", "-Q", query]
+        res = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        if res.returncode != 0:
+            raise RuntimeError(f"sqlcmd failed on query '{query}':\n{res.stdout}\n{res.stderr}")
+    else:
+        _execute_tsql_fallback(db_name, query)
 
 
 def run_pipeline(

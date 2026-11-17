@@ -15,6 +15,22 @@ def get_database_name(default: str = "homerescue_dw") -> str:
     return os.environ.get("SQLSERVER_DB", default).strip() or default
 
 
+def get_odbc_driver() -> str:
+    """Choose an installed Microsoft SQL Server ODBC driver, favoring 18."""
+    supplied = os.getenv("SQLSERVER_DRIVER", "").strip()
+    if supplied:
+        return supplied
+    try:
+        import pyodbc
+        available = pyodbc.drivers()
+        for name in ("ODBC Driver 18 for SQL Server", "ODBC Driver 17 for SQL Server"):
+            if name in available:
+                return name
+    except ImportError:
+        pass
+    return "ODBC Driver 18 for SQL Server"
+
+
 def get_connection_string(database: str | None = None) -> str:
     """Build the ODBC connection string from environment variables without hardcoded secrets."""
     target_db = database or get_database_name()
@@ -25,7 +41,7 @@ def get_connection_string(database: str | None = None) -> str:
             conn = re.sub(r"(?i)(DATABASE=)[^;]+", rf"\g<1>{target_db}", conn)
         return conn
     return (
-        "DRIVER={ODBC Driver 18 for SQL Server};"
+        f"DRIVER={{{get_odbc_driver()}}};"
         f"SERVER={server};DATABASE={target_db};"
         "Trusted_Connection=yes;TrustServerCertificate=yes;"
     )

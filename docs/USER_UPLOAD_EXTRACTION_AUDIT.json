@@ -1,0 +1,65 @@
+{
+  "source_archive": "Housing_Maintenance_Code_Violations_20261112.zip",
+  "archive_size_bytes": 361224544,
+  "extraction_method": "local filter of 2026-11-12 full portal CSV download; output columns reordered and normalized to SODA API names; date format converted from MM/DD/YYYY to ISO timestamp at midnight",
+  "scope": {
+    "borough": "STATEN ISLAND",
+    "boroid": 5,
+    "year": 2024
+  },
+  "sources": {
+    "buildings": {
+      "source_dataset_id": "kj4p-ruqc",
+      "source_portal_url": "https://data.cityofnewyork.us/d/kj4p-ruqc",
+      "source_export_filename": "Buildings_Subject_to_HPD_Jurisdiction_20261112.csv",
+      "total_export_rows_scanned": 381934,
+      "borough_match_rows": 22404,
+      "rows_in_filtered_csv": 22404,
+      "column_count": 23,
+      "sha256": "047d9fea63553669a8b4e8922afe6899fad90ac3776455a4d514aacf1dbe06c2",
+      "file": "data/raw/buildings.csv",
+      "file_size_bytes": 2819724,
+      "source_filter": "boroid = 5"
+    },
+    "complaints_problems": {
+      "source_dataset_id": "ygpa-z7cr",
+      "source_portal_url": "https://data.cityofnewyork.us/d/ygpa-z7cr",
+      "source_export_filename": "Housing_Maintenance_Code_Complaints_and_Problems_20261112.csv",
+      "total_export_rows_scanned": 820272,
+      "borough_match_rows": 13812,
+      "rows_in_filtered_csv": 96,
+      "column_count": 33,
+      "sha256": "3cb6da5bf976a4204161dde2236eaaa056bb0988f7cf6e302352ce1d10ed32a6",
+      "file": "data/raw/complaints_problems.csv",
+      "file_size_bytes": 49560,
+      "source_filter": "borough = 'STATEN ISLAND' AND received_date >= '2024-01-01T00:00:00.000' AND received_date <= '2024-12-31T23:59:59.999'"
+    },
+    "violations": {
+      "source_dataset_id": "wvxf-dwi5",
+      "source_portal_url": "https://data.cityofnewyork.us/d/wvxf-dwi5",
+      "source_export_filename": "Housing_Maintenance_Code_Violations_20261112.csv",
+      "total_export_rows_scanned": 2781260,
+      "borough_match_rows": 46842,
+      "rows_in_filtered_csv": 10331,
+      "column_count": 41,
+      "sha256": "cf1bba4696ba8c13f6b65bf2ce1d0c133b494d4e5aaf5ea7417ea67ad5949c72",
+      "file": "data/raw/violations.csv",
+      "file_size_bytes": 5961797,
+      "source_filter": "boroid = 5 AND inspectiondate >= '2024-01-01T00:00:00.000' AND inspectiondate <= '2024-12-31T23:59:59.999'"
+    },
+    "omo_charges": {
+      "source_dataset_id": "mdbu-nrqn",
+      "source_portal_url": "https://data.cityofnewyork.us/d/mdbu-nrqn",
+      "source_export_filename": "Open_Market_Order_(OMO)_Charges_20261112.csv",
+      "total_export_rows_scanned": 516939,
+      "borough_match_rows": 9593,
+      "rows_in_filtered_csv": 490,
+      "column_count": 32,
+      "sha256": "c9fc0fc691b250c00b0b037216e8cc93a133c425c7287bfe8a48314c139be0d4",
+      "file": "data/raw/omo_charges.csv",
+      "file_size_bytes": 194938,
+      "source_filter": "boro_id = 5 AND omocreatedate >= '2024-01-01T00:00:00.000' AND omocreatedate <= '2024-12-31T23:59:59.999'"
+    }
+  },
+  "generated_at_utc": "2026-11-13T00:44:20.220648+00:00"
+}

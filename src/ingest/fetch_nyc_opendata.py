@@ -250,14 +250,21 @@ def acquire_entity(
 
         if page_file.exists() and not force:
             csv_text = page_file.read_text(encoding="utf-8")
-            page_rows, _ = count_csv_records_from_text(csv_text)
+            page_rows, cached_header = count_csv_records_from_text(csv_text)
+            if cached_header != spec["columns"] or page_rows > page_size:
+                raise RuntimeError(f"Invalid cached API page {page_file}; delete cache and retry with --force")
             print(f"  [{entity}] Using cached page offset={offset} ({page_rows:,} rows)")
         else:
             print(f"  [{entity}] Downloading page offset={offset} limit={page_size}...")
             raw_bytes = http_get_with_retry(url)
             csv_text = raw_bytes.decode("utf-8")
+            page_rows, fresh_header = count_csv_records_from_text(csv_text)
+            if fresh_header != spec["columns"] or page_rows > page_size or (pre_count > offset and page_rows == 0):
+                raise RuntimeError(
+                    f"Incomplete/invalid API response for {entity} at offset={offset}. "
+                    f"Got header={fresh_header!r}, rows={page_rows}. NOT saving corrupted response."
+                )
             page_file.write_text(csv_text, encoding="utf-8")
-            page_rows, _ = count_csv_records_from_text(csv_text)
             print(f"  [{entity}] Fetched {page_rows:,} rows at offset={offset}")
 
         page_files.append(page_file)
@@ -286,6 +293,12 @@ def acquire_entity(
     physical_lines = sum(1 for _ in out_file.open("r", encoding="utf-8"))
     sha = compute_sha256(out_file)
     completed_at = datetime.now(timezone.utc).isoformat()
+    if pre_count != post_count or parsed_rows != post_count:
+        out_file.unlink(missing_ok=True)
+        raise RuntimeError(
+            f"Source count mismatch for {entity}: pre={pre_count}, post={post_count}, csv={parsed_rows}. "
+            "Removed mismatching CSV. Retry when source is stable, optionally with --force."
+        )
 
     print(
         f"[{entity}] Completed: parsed_rows={parsed_rows:,}, "
@@ -327,6 +340,7 @@ def main():
     parser.add_argument("--page-size", type=int, default=25000, help="Socrata pagination size")
     parser.add_argument("--force", action="store_true", help="Force re-download ignoring cache")
     parser.add_argument("--pilot", action="store_true", help="Run pilot mode and save pilot manifest")
+    parser.add_argument("--only", nargs="+", choices=list(DATASET_SPECS), default=list(DATASET_SPECS), help="Only acquire listed entities; useful for recovering two damaged CSV downloads")
     args = parser.parse_args()
 
     out_dir = Path(args.out_dir)
@@ -352,7 +366,7 @@ def main():
         "datasets": {},
     }
 
-    for entity in ["buildings", "complaints_problems", "violations", "omo_charges"]:
+    for entity in args.only:
         info = acquire_entity(
             entity=entity,
             borough=args.borough,
